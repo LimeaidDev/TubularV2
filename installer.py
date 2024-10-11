@@ -104,7 +104,7 @@ class InstallerApp(QtWidgets.QWidget):
             install_location = r'"C:\Program Files\Tubular"'
             publisher = "limeade"
             icon_path = r"C:\Program Files\Tubular\tubular.ico"
-            version = "1.1"
+            version = "1.2"
 
             try:
                 key = reg.CreateKey(reg.HKEY_LOCAL_MACHINE, key_path)

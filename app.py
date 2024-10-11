@@ -4,15 +4,16 @@ import subprocess
 import string
 import sys
 
-from PyQt5.QtGui import QIcon, QPixmap
+from PyQt5.QtGui import QIcon, QPixmap, QPainterPath, QRegion, QFontDatabase
 from pytubefix import YouTube
 from PyQt5.QtWidgets import *
-from PyQt5.QtCore import QThread, pyqtSignal, Qt
+from PyQt5.QtCore import QThread, pyqtSignal, Qt, QPoint, QRect, QRectF, QTimer
 import traceback
 
 
 vid_dir = os.path.expanduser("~\\Documents\\Tubular Videos")
 print(vid_dir)
+
 if os.path.isdir(vid_dir) is False:
     os.mkdir(vid_dir)
 
@@ -151,80 +152,186 @@ class YTManager(QThread):
         percentage = bytes_downloaded / total_size * 100
         self.progress.emit(int(percentage))
 
-dark_stylesheet = """
-QWidget {
-    background-color: #2E2E2E;
-    color: #FFFFFF;
-}
 
-QLineEdit {
-    background-color: #3C3C3C;
-    color: #FFFFFF;
-    border: 1px solid #555555;
-}
 
-QPushButton {
-    background-color: #555555;
-    color: #FFFFFF;
-    border: 1px solid #777777;
-    border-radius: 5px;
-}
 
-QPushButton:hover {
-    background-color: #666666;
-}
 
-QComboBox {
-    background-color: #3C3C3C;
-    color: #FFFFFF;
-    border: 1px solid #555555;
-}
 
-QComboBox::down-arrow {
-    border: none
-}
 
-QProgressBar::chunk {
-    background-color: #555555;  /* Change this color as needed */
-}
 
-QListWidget {
-    background-color: #3C3C3C;
-    color: #FFFFFF;
-}
+class CustomTitleBar(QWidget):
+    def __init__(self, parent=None):
+        tiny_font_id = QFontDatabase.addApplicationFont("Tiny.ttf")
+        tiny_font_family = QFontDatabase.applicationFontFamilies(tiny_font_id)[0]
+        print("Loaded font:", tiny_font_id)
+        super().__init__(parent)
+        self.setFixedHeight(30)
 
-QMenuBar {
-    background-color: #444444;
-    color: #FFFFFF;
-}
 
-QMenu {
-    background-color: #444444;
-    color: #FFFFFF;
-}
+        # Title Bar Layout
+        self.layout = QHBoxLayout()
+        self.layout.setContentsMargins(10, 0, 5, 0)
 
-QMenu::item {
-    background-color: #444444;
-}
+        # Title Label
+        self.title = QLabel("Tubular")
+        self.title.setStyleSheet(f"font-family: '{tiny_font_family}'; font-size: 20px;")
+        self.layout.addWidget(self.title)
 
-QMenu::item:selected {
-    background-color: #666666;
-}
-"""
+        # Add some stretch space between the title and buttons
+        self.layout.addStretch()
+
+        # Minimize Button
+        self.minimizeButton = QPushButton("_")
+        self.minimizeButton.setFixedSize(22, 22)
+        self.minimizeButton.setStyleSheet("background-color: #3B4252; color: white; border: none;")
+        self.minimizeButton.clicked.connect(parent.showMinimized)
+        self.layout.addWidget(self.minimizeButton)
+
+        # Close Button
+        self.closeButton = QPushButton("")
+        self.closeButton.setFixedSize(22, 22)
+        self.closeButton.setStyleSheet("background-color: #BF616A; color: white; border: none;")
+        self.closeButton.clicked.connect(parent.close)
+        self.layout.addWidget(self.closeButton)
+
+        self.setLayout(self.layout)
+
+        # Track the mouse position for moving the window
+        self.start = QPoint(0, 0)
+        self.pressed = False
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.start = event.globalPos()
+            self.pressed = True
+
+    def mouseMoveEvent(self, event):
+        if self.pressed:
+            self.parent().move(self.parent().pos() + event.globalPos() - self.start)
+            self.start = event.globalPos()
+
+    def mouseReleaseEvent(self, event):
+        self.pressed = False
+
+    def toggleMaximizeRestore(self):
+        if self.parent().isMaximized():
+            self.parent().showNormal()
+        else:
+            self.parent().showMaximized()
+
 
 class TubularApp(QWidget):
     def __init__(self):
         super().__init__()
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.fade_in)
+
+        self.opacity = 0.0
+
+        ubuntu_font_id = QFontDatabase.addApplicationFont("Ubuntu.ttf")
+        ubuntu_font_family = QFontDatabase.applicationFontFamilies(ubuntu_font_id)[0]
+        print(ubuntu_font_family)
+
+        self.dark_stylesheet = """
+        
+        
+        QWidget {
+            font-family: 'Ubuntu Sans Mono';
+            font-size: 14px;
+            background-color: #2E2E2E;
+            color: #FFFFFF;
+        }
+
+        QLineEdit {
+            background-color: #3C3C3C;
+            color: #FFFFFF;
+            border: 1px solid #555555;
+            border-radius: 5px;
+            padding: 2px;
+        }
+
+        QPushButton {
+            
+            background-color: #555555;
+            color: #FFFFFF;
+            border: 1px solid #777777;
+            border-radius: 5px;
+            padding: 4px
+        }
+
+        QPushButton:hover {
+            background-color: #666666;
+        }
+
+        QComboBox {
+            background-color: #3C3C3C;
+            color: #FFFFFF;
+            border: 1px solid #555555;
+            border-radius: 5px;
+            padding: 2px;
+        }
+
+        QListWidget {
+            font-family: Ubuntu Mono Sans;
+            background-color: #3C3C3C;
+            color: #FFFFFF;
+            border-radius: 5px;
+            border: 1px solid #555555;
+        }
+
+        QMenuBar {
+            background-color: #444444;
+            color: #FFFFFF;
+        }
+        QMenuBar::item:selected {
+            background-color: #6A6A6A;
+        }
+        
+        QProgressBar {
+            color: black;
+        }
+        QProgressBar::chunk {
+            background-color: grey;
+        }
+
+
+
+        QMenu {
+            background-color: #444444;
+            color: #FFFFFF;
+            margin: 0px;
+        }
+
+        QMenu::item {
+            background-color: #444444;
+
+        }
+
+        QMenu::item:selected {
+            background-color: #6A6A6A;
+        }
+        """
+
         self.initUI()
+        self.setWindowFlags(Qt.FramelessWindowHint)
+        self.setWindowOpacity(0.0)
+
+
+
+
 
     def initUI(self):
-
         layout = QVBoxLayout()
-        layout.setContentsMargins(0,0,0,0)
-        # self.setStyleSheet(dark_stylesheet)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.setStyleSheet("")
+        self.setStyleSheet(self.dark_stylesheet)  # Example: change to your `dark_stylesheet`
+
+        # Custom Title Bar
+        self.titleBar = CustomTitleBar(self)
+        layout.addWidget(self.titleBar)
 
         menubar = QMenuBar(self)
-        menubar.setFixedHeight(20)
+        menubar.setFixedHeight(22)
         layout.addWidget(menubar)
 
         file_menu = menubar.addMenu('File')
@@ -244,10 +351,7 @@ class TubularApp(QWidget):
         about_menu.addAction(about_action)
 
         main_layout = QHBoxLayout()
-        main_layout.setContentsMargins(15,0,15,15)
-
-
-
+        main_layout.setContentsMargins(10, 0, 10, 10)
 
         control_layout = QVBoxLayout()
 
@@ -300,7 +404,8 @@ class TubularApp(QWidget):
         control_layout.addWidget(self.prog_log)
 
         main_layout.addLayout(control_layout)
-
+        main_layout.setStretch(0, 1)
+        control_layout.setStretch(0, 1)
 
         self.video_list = QListWidget(self)
         self.video_list.itemDoubleClicked.connect(self.on_item_double_clicked)
@@ -313,6 +418,24 @@ class TubularApp(QWidget):
         self.setWindowIcon(QIcon("tubular.ico"))
         self.setFixedSize(500, 350)
         self.load_video_list()
+        self.update_rounded_corners()
+        self.timer.start(25)
+
+    def update_rounded_corners(self):
+        radius = 10  # Adjust this for roundness
+        rect = QRectF(0, 0, self.width(), self.height())  # Convert QRect to QRectF
+        path = QPainterPath()
+        path.addRoundedRect(rect, radius, radius)
+        region = QRegion(path.toFillPolygon().toPolygon())
+        self.setMask(region)
+
+    def fade_in(self):
+        # Increase the opacity
+        self.opacity += 0.05  # Adjust the increment for faster/slower fade
+        if self.opacity >= 1.0:
+            self.opacity = 1.0
+            self.timer.stop()  # Stop the timer when fully opaque
+        self.setWindowOpacity(self.opacity)
 
     def load_video_list(self):
         self.video_list.clear()
@@ -356,7 +479,7 @@ class TubularApp(QWidget):
     def credits(self):
         msg = QMessageBox()
         msg.setText("""
-Tubular V1.1
+Tubular V1.2
 Made with <3 by limeadeTV
         """)
         msg.setStandardButtons(QMessageBox.Close)
