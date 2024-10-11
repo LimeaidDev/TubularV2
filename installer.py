@@ -121,6 +121,7 @@ class InstallerApp(QtWidgets.QWidget):
 
             # Create the shortcut
             self.create_shortcut()
+            self.create_system_wide_start_menu_shortcut()
 
             QtWidgets.QMessageBox.information(self, 'Success', f'Files installed to {dest_dir}')
             sys.exit()
